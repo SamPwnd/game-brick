@@ -1,12 +1,28 @@
 let canvas = document.getElementById('my-canvas');
 let ctx = canvas.getContext('2d');
 
-function randomColor(color) {
+// Definizione delle difficoltà del gioco
+const difficulties = ["easy", "medium", "high", "impossible"];
+let difficultyIndex = 3;
+let difficulty = difficulties[difficultyIndex];
+
+// Funzione per generare un colore casuale per i mattoncini
+function randomColor(color, difficulty) {
     let ifSpecialBrick = Math.floor(Math.random() * 100);
     if (ifSpecialBrick == 1) {
         return 'black';
     }
-    let colors = ['blue', 'limegreen', 'gold', 'crimson', 'darkorange', 'lightseagreen', 'orchid'];
+    // Definizione dei colori in base alla difficoltà
+    let colors;
+    if (difficulty === 'easy') {
+        colors = ['blue', 'limegreen', 'gold'];
+    } else if (difficulty === 'medium') {
+        colors = ['blue', 'limegreen', 'gold', 'crimson', 'coral'];
+    } else if (difficulty === 'high') {
+        colors = ['blue', 'limegreen', 'gold', 'crimson', 'coral', 'lightseagreen', 'orchid'];
+    } else if (difficulty === 'impossible') {
+        colors = ['blue', 'limegreen', 'gold', 'crimson', 'coral', 'lightseagreen', 'orchid','navy', 'indigo', 'slateGray'];
+    }
 
     if(color != null){
         let index = colors.indexOf(color);
@@ -16,6 +32,7 @@ function randomColor(color) {
     return colors[randomCol];
 }
 
+// Definizione delle dimensioni e del layout dei mattoncini
 let mTop = 30;
 let mLeft = 30;
 let brickSize = 50;
@@ -25,6 +42,7 @@ let brickPadding = 10;
 
 let totalScore = 0;
 
+// Inizializzazione della matrice dei mattoncini
 let bricks = [];
 for(let c=0; c<brickColCount; c++) {
     bricks[c] = [];
@@ -33,7 +51,8 @@ for(let c=0; c<brickColCount; c++) {
     }
 }
 
-function drawBricks() {
+// Disegna i mattoncini
+function drawBricks(difficulty) {
     for(let c=0; c<brickColCount; c++) {
         for(let r=0; r<brickRowCount; r++) {
             let brickX = (c*(brickSize + brickPadding)) + mLeft;
@@ -41,19 +60,28 @@ function drawBricks() {
 
             bricks[c][r].x = brickX;
             bricks[c][r].y = brickY;
-            bricks[c][r].color = randomColor(null);
+            bricks[c][r].color = randomColor(null, difficulty);
+            // Disegna il mattoncino con uno stile arrotondato
             ctx.beginPath();
-            ctx.rect(brickX, brickY, brickSize, brickSize);
+            ctx.moveTo(brickX + 10, brickY);
+            ctx.arcTo(brickX + brickSize, brickY, brickX + brickSize, brickY + brickSize, 10);
+            ctx.arcTo(brickX + brickSize, brickY + brickSize, brickX, brickY + brickSize, 10);
+            ctx.arcTo(brickX, brickY + brickSize, brickX, brickY, 10);
+            ctx.arcTo(brickX, brickY, brickX + brickSize, brickY, 10);
+            ctx.closePath();
+
             ctx.fillStyle = bricks[c][r].color;
             ctx.fill();
-            ctx.closePath();
             
         }
     }
+    // Carica i dati salvati
     getSave();
+    // Gestisce il clic sui mattoncini
     brickClick();
 }
 
+// Gestisce il clic sui mattoncini
 function brickClick(){
     canvas.addEventListener('click', (e) => {
         let x = e.offsetX;
@@ -63,7 +91,6 @@ function brickClick(){
                 let brickX = (c*(brickSize + brickPadding)) + mLeft;
                 let brickY = (r*(brickSize + brickPadding)) + mTop;
                 if(x >= brickX && x <= brickX+brickSize && y >= brickY && y <= brickY+brickSize) {
-                    //console.log(brickY, brickY+brickSize, y);
                     if(bricks[c][r].color == 'black'){
                         removeCol(c);
                         removeRow(r);
@@ -74,17 +101,17 @@ function brickClick(){
                         destroyFinder(destroyCont);
                     }
                     brickFall();
-
-                    //ctx.clearRect(brickX, brickY, brickSize, brickSize);
                 }
             }
         }
+        // Salva lo stato del gioco
         localStorage.setItem('bricks', JSON.stringify(bricks));
-        
+        // Controlla se è terminata la partita
         gameOver();
     })
 }
 
+// Avvia la pagina di gioco
 function startPage(){
     ctx.fillStyle = 'orange';
     ctx.fillRect(0, canvas.height/3, canvas.width, 110);
@@ -95,7 +122,6 @@ function startPage(){
         ctx.fillText("CONTINUA PARTITA", canvas.width/4, canvas.height/2-10);
     }
     else ctx.fillText("INIZIA PARTITA", canvas.width/3, canvas.height/2-10);
-    
 
     canvas.addEventListener('click', start);
     function start(e){
@@ -105,16 +131,15 @@ function startPage(){
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             let scoreBlock = document.querySelector('.score-block');
             scoreBlock.style.display = 'flex';
-            drawBricks();
+            drawBricks(difficulty);
             canvas.removeEventListener('click', start);
         }
         
     }
 }
 
-
+// Funzione ricorsiva per contare i mattoncini adiacenti dello stesso colore
 function nearObserver(x, y, color, num) {
-
       if(y<0 || x<0 || x >= brickColCount || y >= brickRowCount || bricks[x][y] == null || bricks[x][y].color != color || bricks[x][y].destroying ) return 0;
       let cont = ++num;
       let tmp = 0;
@@ -131,6 +156,7 @@ function nearObserver(x, y, color, num) {
       return cont;
 }
 
+// Funzione per rimuovere i mattoncini
 function destroyFinder(destroyCont){
     if(destroyCont > 2){
         for(let c=0; c<brickColCount; c++) {
@@ -145,19 +171,17 @@ function destroyFinder(destroyCont){
         }
         printScore(destroyCont);
     }
-    
 }
 
+// Funzione per aggiornare il punteggio e visualizzarlo
 function printScore(score){
     totalScore += score;
     let scoreText = document.getElementById('score');
     scoreText.innerText = totalScore;
-    //if (score>0) {
-        localStorage.setItem('score', JSON.stringify(totalScore));
-    //}
-    
+    localStorage.setItem('score', JSON.stringify(totalScore));
 }
 
+// Funzione per rimuovere una riga di mattoncini
 function removeRow(row) {
     for (let i = 0; i < brickColCount; i++) {
         let brickX = (i*(brickSize + brickPadding)) + mLeft;
@@ -167,6 +191,7 @@ function removeRow(row) {
     }
 }
 
+// Funzione per rimuovere una colonna di mattoncini
 function removeCol(col) {
     for (let i = 0; i < brickColCount; i++) {
         let brickX = (col*(brickSize + brickPadding)) + mLeft;
@@ -176,6 +201,7 @@ function removeCol(col) {
     }
 }
 
+// Funzione per far cadere i mattoncini
 function brickFall(){
     for(let c=brickColCount-1; c >= 0; c--) {
         let cont = 0;
@@ -189,10 +215,11 @@ function brickFall(){
             bricks[c].unshift(null);
         }
     }
-    redrawBricks();
+    redrawBricks(difficulty);
 }    
 
-function redrawBricks(){
+// Funzione per ridisegnare i mattoncini dopo la caduta
+function redrawBricks(difficulty){
     for(let c=0; c<brickColCount; c++) {
         for(let r=0; r<brickRowCount; r++) {
             let brickX = (c*(brickSize + brickPadding)) + mLeft;
@@ -203,26 +230,37 @@ function redrawBricks(){
                 bricks[c][r] = { x: 0, y: 0, color: 'none', destroying: false };
                 bricks[c][r].x = brickX;
                 bricks[c][r].y = brickY;
-                if(tempCol != undefined) bricks[c][r].color = randomColor(tempCol.color);
-                else bricks[c][r].color = randomColor(null);
+                if(tempCol != undefined) bricks[c][r].color = randomColor(tempCol.color, difficulty);
+                else bricks[c][r].color = randomColor(null, difficulty);
                 ctx.beginPath();
-                ctx.rect(brickX, brickY, brickSize, brickSize);
+                ctx.moveTo(brickX + 10, brickY);
+                ctx.arcTo(brickX + brickSize, brickY, brickX + brickSize, brickY + brickSize, 10);
+                ctx.arcTo(brickX + brickSize, brickY + brickSize, brickX, brickY + brickSize, 10);
+                ctx.arcTo(brickX, brickY + brickSize, brickX, brickY, 10);
+                ctx.arcTo(brickX, brickY, brickX + brickSize, brickY, 10);
+                ctx.closePath();
+
                 ctx.fillStyle = bricks[c][r].color;
                 ctx.fill();
-                ctx.closePath();
             }
 
             else {
                 ctx.beginPath();
-                ctx.rect(brickX, brickY, brickSize, brickSize);
+                ctx.moveTo(brickX + 10, brickY);
+                ctx.arcTo(brickX + brickSize, brickY, brickX + brickSize, brickY + brickSize, 10);
+                ctx.arcTo(brickX + brickSize, brickY + brickSize, brickX, brickY + brickSize, 10);
+                ctx.arcTo(brickX, brickY + brickSize, brickX, brickY, 10);
+                ctx.arcTo(brickX, brickY, brickX + brickSize, brickY, 10);
+                ctx.closePath();
+
                 ctx.fillStyle = bricks[c][r].color;
                 ctx.fill();
-                ctx.closePath();
             }
         }
     }
 }
 
+// Controlla se è terminata la partita
 function gameOver(){
     let cont = 0;
     for(let c=0; c<brickColCount; c++) {
@@ -238,6 +276,7 @@ function gameOver(){
     console.log('GAME OVER');
 }
 
+// Disinnesca i mattoncini
 function defuse(){
     for(let c=0; c<brickColCount; c++) {
         for(let r=0; r<brickRowCount; r++) {
@@ -246,27 +285,45 @@ function defuse(){
     }
 }
 
+// Visualizza il messaggio di game over
 function gameOverMessage(){
     ctx.fillStyle = 'orange';
     ctx.fillRect(0, canvas.height/3, canvas.width, 110);
     ctx.font = "46px Impact";
     ctx.fillStyle = "white";
     ctx.fillText("GAME OVER :(", canvas.width/3, canvas.height/2-10);
-
 }
 
+// Cambia la difficoltà del gioco
+const difficultyBtn = document.getElementById('difficulty');
+difficultyBtn.addEventListener('click', toggleDifficulty);
+difficultyBtn.textContent = `Difficulty: ${difficulty}`;
+
+function toggleDifficulty() {
+    difficultyIndex++;
+    if (difficultyIndex >= difficulties.length) {
+        difficultyIndex = 0;
+    }
+    difficulty = difficulties[difficultyIndex];
+    difficultyBtn.textContent = `Difficulty: ${difficulty}`;    
+    reset();
+}
+
+// Resetta il gioco
 function reset(){
-    let resetBtn = document.getElementById('reset');
-    resetBtn.addEventListener('click', () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        totalScore = 0;
-        localStorage.setItem('score', JSON.stringify(0));
-        localStorage.setItem('bricks', JSON.stringify(null));
-        drawBricks();
-        printScore(0);
-    })
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    totalScore = 0;
+    localStorage.setItem('score', JSON.stringify(0));
+    localStorage.setItem('bricks', JSON.stringify(null));
+    drawBricks(difficulty);
+    printScore(0);
 }
 
+// Gestisce il clic sul pulsante di reset
+const resetBtn = document.getElementById('reset');
+resetBtn.addEventListener('click', reset);
+
+// Carica lo stato salvato del gioco
 function getSave(){
     let savedBricks = JSON.parse(localStorage.getItem('bricks'));
     if(savedBricks != null){
@@ -278,11 +335,15 @@ function getSave(){
                 let brickY = (r*(brickSize + brickPadding)) + mTop;
     
                 ctx.beginPath();
-                ctx.rect(brickX, brickY, brickSize, brickSize);
+                ctx.moveTo(brickX + 10, brickY);
+                ctx.arcTo(brickX + brickSize, brickY, brickX + brickSize, brickY + brickSize, 10);
+                ctx.arcTo(brickX + brickSize, brickY + brickSize, brickX, brickY + brickSize, 10);
+                ctx.arcTo(brickX, brickY + brickSize, brickX, brickY, 10);
+                ctx.arcTo(brickX, brickY, brickX + brickSize, brickY, 10);
+                ctx.closePath();
+
                 ctx.fillStyle = bricks[c][r].color;
                 ctx.fill();
-                ctx.closePath();
-                
             }
         }
     }
@@ -293,5 +354,7 @@ function getSave(){
     };
 }
 
-startPage();
-reset();
+// Avvia il gioco quando il DOM è caricato
+document.addEventListener('DOMContentLoaded', function() {
+    startPage();
+});
